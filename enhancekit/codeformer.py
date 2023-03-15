@@ -2,23 +2,15 @@ import torch
 from torchvision.transforms.functional import normalize
 from facexlib.utils.face_restoration_helper import FaceRestoreHelper
 
-from .checkpoints import CheckpointPaths
 from .utils import img2tensor, tensor2img
 from .nets.codeformer import CodeFormerModel
-from .realesrgan import RealESRGan
 
 
 class CodeFormer():
-	def __init__(self, checkpoint_paths: CheckpointPaths):
-		self.checkpoint_paths = checkpoint_paths
+	def __init__(self, codeformer_checkpoint, facelib_checkpoint, upsampler=None):
 		self.device = 'cuda'
-
-		self.upsampler = RealESRGan(
-			scale=2,
-			checkpoint_path=checkpoint_paths.realesrgan,
-			pre_pad=0,
-			half=True,
-		)
+		self.facelib_checkpoint = facelib_checkpoint
+		self.upsampler = upsampler
 
 		self.net = CodeFormerModel(
 			dim_embd=512,
@@ -28,14 +20,14 @@ class CodeFormer():
 			connect_list=['32', '64', '128', '256'],
 		)
 
-		checkpoint = torch.load(checkpoint_paths.codeformer)['params_ema']
+		checkpoint = torch.load(codeformer_checkpoint)['params_ema']
 
 		self.net.load_state_dict(checkpoint)
 		self.net.to(self.device)
 		self.net.eval()
 
 
-	def __call__(self, image, fidelity=0.5, bg_enhance=False, face_upsample=True, upscale=2):
+	def __call__(self, image, fidelity=0.5, upscale=2):
 		self.face_helper = FaceRestoreHelper(
 			upscale,
 			face_size=512,
@@ -44,11 +36,8 @@ class CodeFormer():
 			save_ext='png',
 			use_parse=True,
 			device=self.device,
-			model_rootpath=self.checkpoint_paths.facelib
+			model_rootpath=self.facelib_checkpoint
 		)
-
-		bg_upsampler = self.upsampler if bg_enhance else None
-		face_upsampler = self.upsampler if face_upsample else None
 	
 		self.face_helper.clean_all()
 		self.face_helper.read_image(image)
@@ -95,8 +84,8 @@ class CodeFormer():
 			restored_face = restored_face.astype('uint8')
 			self.face_helper.add_restored_face(restored_face)
 
-		if bg_upsampler is not None:
-			bg_img = bg_upsampler.enhance(image, outscale=upscale)[0]
+		if self.upsampler is not None:
+			bg_img = self.upsampler(image, outscale=upscale)[0]
 		else:
 			bg_img = None
 
