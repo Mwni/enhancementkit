@@ -1,11 +1,11 @@
 from setuptools import setup
 
 setup(
-	name='enhancerkit',
+	name='enhancekit',
 	version='0.1',
 	packages=[
-		'enhancerkit',
-		'enhancerkit.nets',
+		'enhancekit',
+		'enhancekit.nets',
 	],
 	install_requires=[
 		'realesrgan',
