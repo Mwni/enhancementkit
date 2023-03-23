@@ -25,5 +25,18 @@ class RealESRGan():
 			half=half,
 		)
 
-	def __call__(self, *args, **kwargs):
-		return self.upsampler.enhance(*args, **kwargs)
+	def __call__(self, image, *args, **kwargs):
+		if isinstance(image, Image.Image):
+			return Image.fromarray(
+				self.upsampler.enhance(
+					np.array(image)[:, :, ::-1],
+					*args, 
+					**kwargs
+				)[0][:, :, ::-1]
+			)
+		else:
+			return self.upsampler.enhance(
+				image,
+				*args, 
+				**kwargs
+			)[0]

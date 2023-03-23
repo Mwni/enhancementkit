@@ -1,16 +1,17 @@
 import torch
+import numpy as np
 from torchvision.transforms.functional import normalize
 from facexlib.utils.face_restoration_helper import FaceRestoreHelper
+from PIL import Image
 
 from .utils import img2tensor, tensor2img
 from .nets.codeformer import CodeFormerModel
 
 
 class CodeFormer():
-	def __init__(self, codeformer_checkpoint, facelib_checkpoint, upsampler=None):
+	def __init__(self, codeformer_checkpoint, facelib_checkpoint):
 		self.device = 'cuda'
 		self.facelib_checkpoint = facelib_checkpoint
-		self.upsampler = upsampler
 
 		self.net = CodeFormerModel(
 			dim_embd=512,
@@ -27,7 +28,11 @@ class CodeFormer():
 		self.net.eval()
 
 
-	def __call__(self, image, fidelity=0.5, upscale=2):
+	def __call__(self, image, fidelity=0.5, upscale=2, bg_upsampler=None):
+		if isinstance(image, Image.Image):
+			image = np.array(image)[:, :, ::-1]
+			return_pil = True
+
 		self.face_helper = FaceRestoreHelper(
 			upscale,
 			face_size=512,
@@ -84,13 +89,15 @@ class CodeFormer():
 			restored_face = restored_face.astype('uint8')
 			self.face_helper.add_restored_face(restored_face)
 
-		if self.upsampler is not None:
-			bg_img = self.upsampler(image, outscale=upscale)[0]
+		if bg_upsampler is not None:
+			bg_img = bg_upsampler(image, outscale=upscale)[0]
 		else:
 			bg_img = None
 
 		self.face_helper.get_inverse_affine(None)
 		
-		return self.face_helper.paste_faces_to_input_image(
+		result = self.face_helper.paste_faces_to_input_image(
 			upsample_img=bg_img,
 		)
+
+		return Image.fromarray(result[:, :, ::-1]) if return_pil else result
