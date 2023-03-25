@@ -32,6 +32,8 @@ class CodeFormer():
 		if isinstance(image, Image.Image):
 			image = np.array(image)[:, :, ::-1]
 			return_pil = True
+		else:
+			return_pil = False
 
 		self.face_helper = FaceRestoreHelper(
 			upscale,
@@ -90,7 +92,7 @@ class CodeFormer():
 			self.face_helper.add_restored_face(restored_face)
 
 		if bg_upsampler is not None:
-			bg_img = bg_upsampler(image, outscale=upscale)[0]
+			bg_img = bg_upsampler(image, outscale=upscale)
 		else:
 			bg_img = None
 
